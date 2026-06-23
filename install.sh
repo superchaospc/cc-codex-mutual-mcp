@@ -5,7 +5,15 @@
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WRAPPER="$SKILL_DIR/scripts/claude-agent-mcp.mjs"
+WRAPPER_SRC="$SKILL_DIR/scripts/claude-agent-mcp.mjs"
+
+# --- platform note -------------------------------------------------------------
+# This bridge targets the macOS desktop Codex.app (its bundled CLI). On Linux the
+# `codex` CLI lives elsewhere and there is no Codex.app — set CODEX_BIN yourself.
+if [[ "$(uname)" != "Darwin" ]]; then
+  echo "NOTE: non-macOS detected ($(uname)). The default Codex.app path won't exist;" >&2
+  echo "      set CODEX_BIN=/path/to/codex (the Codex CLI) before running this." >&2
+fi
 
 # --- locate the three binaries -------------------------------------------------
 CODEX_BIN="${CODEX_BIN:-/Applications/Codex.app/Contents/Resources/codex}"
@@ -26,9 +34,17 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
+# --- install the wrapper to a stable location ----------------------------------
+# Register the wrapper from CODEX_HOME (default ~/.codex), NOT from the skill dir,
+# so the bridge keeps working even if the skill is moved, renamed, or removed.
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+WRAPPER="$CODEX_HOME/claude-agent-mcp.mjs"
+mkdir -p "$CODEX_HOME"
+cp "$WRAPPER_SRC" "$WRAPPER"
+
 echo "Codex binary : $CODEX_BIN"
 echo "claude binary: $CLAUDE_BIN"
-echo "wrapper      : $WRAPPER"
+echo "wrapper      : $WRAPPER (copied from skill)"
 echo
 
 # --- A) CC -> Codex ------------------------------------------------------------
@@ -57,12 +73,31 @@ else
     echo "    WARN: this 'codex mcp add' has no --env flag, so CLAUDE_BIN was not passed." >&2
     echo "          Your claude is at '$CLAUDE_BIN' but the wrapper defaults to" >&2
     echo "          /opt/homebrew/bin/claude. Set CLAUDE_BIN in the wrapper's env or" >&2
-    echo "          edit scripts/claude-agent-mcp.mjs, or the agent will fail to launch." >&2
+    echo "          edit $WRAPPER, or the agent will fail to launch." >&2
   fi
 fi
 echo "    done."
 
 echo
-echo "All three servers registered. Verify with:"
-echo "  claude mcp list   # expect: codex ... Connected"
-echo "  $CODEX_BIN mcp list   # expect: claude_code AND claude_agent"
+echo "All three servers registered."
+
+# --- auto-verify ---------------------------------------------------------------
+# A "registered" server is not necessarily a working one — run the token-free
+# self-test so the installer reports real execution, not just registration.
+# Skip with SKIP_VERIFY=1.
+if [[ "${SKIP_VERIFY:-0}" == "1" ]]; then
+  echo "Skipping verification (SKIP_VERIFY=1). Run it later with:"
+  echo "  bash $SKILL_DIR/scripts/selftest.sh"
+elif [[ -f "$SKILL_DIR/scripts/selftest.sh" ]]; then
+  echo "Verifying (token-free self-test)…"
+  echo
+  CLAUDE_BIN="$CLAUDE_BIN" CODEX_BIN="$CODEX_BIN" bash "$SKILL_DIR/scripts/selftest.sh" || {
+    echo >&2
+    echo "Self-test reported problems — see FAILs above and SKILL.md's 'four gotchas'." >&2
+    exit 1
+  }
+else
+  echo "Verify with:"
+  echo "  claude mcp list   # expect: codex ... Connected"
+  echo "  $CODEX_BIN mcp list   # expect: claude_code AND claude_agent"
+fi

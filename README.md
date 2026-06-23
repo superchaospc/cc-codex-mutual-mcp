@@ -110,11 +110,16 @@ A freshly *registered* bridge often looks dead. These are why:
 
 ## Wrapper configuration
 
-`scripts/claude-agent-mcp.mjs` reads two env vars:
+`scripts/claude-agent-mcp.mjs` reads three env vars:
 
 - `CLAUDE_BIN` — path to the `claude` binary (default `/opt/homebrew/bin/claude`). The installer
   passes the detected path through.
 - `CLAUDE_AGENT_TIMEOUT_MS` — kill timeout for a hung agent (default `600000` = 10 min).
+- `CLAUDE_AGENT_HEARTBEAT_MS` — interval for the keep-alive heartbeat (default `15000` = 15 s). A
+  whole-task agent can run for minutes; the wrapper emits an MCP `notifications/progress` (when the
+  caller supplied a `progressToken`) plus a stderr tick each interval, so the call isn't a silent
+  black box. `install.sh` copies the wrapper to `~/.codex/claude-agent-mcp.mjs` (a stable path) and
+  registers that copy, so the bridge survives the skill dir being moved or removed.
 
 ## Uninstall
 
@@ -203,10 +208,11 @@ claude mcp list   # codex … ✔ Connected
 
 ### wrapper 配置
 
-`scripts/claude-agent-mcp.mjs` 读两个环境变量:
+`scripts/claude-agent-mcp.mjs` 读三个环境变量:
 
 - `CLAUDE_BIN` —— `claude` 二进制路径(默认 `/opt/homebrew/bin/claude`),安装脚本会把探测到的路径传进去。
 - `CLAUDE_AGENT_TIMEOUT_MS` —— 卡死 agent 的强杀超时(默认 `600000` = 10 分钟)。
+- `CLAUDE_AGENT_HEARTBEAT_MS` —— 保活心跳间隔(默认 `15000` = 15 秒)。整任务 agent 可能跑好几分钟,wrapper 每隔一个间隔就发一次 MCP `notifications/progress`(当调用方给了 `progressToken` 时)外加一条 stderr 心跳,免得这次调用变成一个静默黑盒。`install.sh` 会把 wrapper 拷到 `~/.codex/claude-agent-mcp.mjs`(稳定路径)并注册那个副本,这样即便 skill 目录被移动或删除,桥依然能用。
 
 ### 卸载
 

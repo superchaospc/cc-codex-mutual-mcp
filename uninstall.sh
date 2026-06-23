@@ -16,4 +16,12 @@ else
   echo "WARN: Codex binary not found at $CODEX_BIN — remove claude_code/claude_agent manually." >&2
 fi
 
-echo "Done. The wrapper script stays inside the skill dir; nothing else to clean up."
+# Remove the wrapper copy that install.sh placed in CODEX_HOME (the skill's own
+# copy under scripts/ is left untouched).
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+if [[ -f "$CODEX_HOME/claude-agent-mcp.mjs" ]]; then
+  echo "Removing installed wrapper $CODEX_HOME/claude-agent-mcp.mjs..."
+  rm -f "$CODEX_HOME/claude-agent-mcp.mjs"
+fi
+
+echo "Done. Other MCP servers were left untouched."

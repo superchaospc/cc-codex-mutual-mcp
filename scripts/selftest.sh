@@ -64,6 +64,24 @@ EOF
   else
     no "stub claude was never invoked"
   fi
+
+  # Heartbeat: slow stub + tiny heartbeat interval + a progressToken → expect a
+  # notifications/progress to be emitted while the agent "runs".
+  SLOW="$TMP/slow-claude.sh"
+  cat > "$SLOW" <<'EOF'
+#!/usr/bin/env bash
+perl -e 'select undef,undef,undef,0.6'   # ~0.6s, no `sleep` dependency
+echo "SLOW_STUB_DONE"
+EOF
+  chmod +x "$SLOW"
+  HB="$(printf '%s\n' \
+    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' \
+    '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"claude_agent","arguments":{"prompt":"hi"},"_meta":{"progressToken":"t1"}}}' \
+    | CLAUDE_BIN="$SLOW" CLAUDE_AGENT_HEARTBEAT_MS=200 to 30 node "$WRAPPER" 2>/dev/null)"
+  echo "$HB" | grep -q '"method":"notifications/progress"' \
+    && echo "$HB" | grep -q '"progressToken":"t1"' \
+    && ok "heartbeat emits notifications/progress for long-running agents" \
+    || no "no progress heartbeat emitted during a long-running call"
 fi
 
 echo "== 2. claude_code leaf Bash via 'claude mcp serve' (no model tokens) =="

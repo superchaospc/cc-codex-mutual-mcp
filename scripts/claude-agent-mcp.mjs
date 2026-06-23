@@ -21,6 +21,7 @@ import readline from "node:readline";
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || "/opt/homebrew/bin/claude";
 const TIMEOUT_MS = Number(process.env.CLAUDE_AGENT_TIMEOUT_MS || 600000);
+const HEARTBEAT_MS = Number(process.env.CLAUDE_AGENT_HEARTBEAT_MS || 15000);
 const DEFAULT_ALLOWED = "Read,Edit,Write,Bash,Grep,Glob,WebSearch,WebFetch";
 
 const TOOL = {
@@ -129,7 +130,7 @@ async function handle(msg) {
       return result(id, {
         protocolVersion: params?.protocolVersion || "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "claude-agent-bridge", version: "1.0.0" },
+        serverInfo: { name: "claude-agent-bridge", version: "1.1.0" },
       });
     case "ping":
       return result(id, {});
@@ -139,7 +140,32 @@ async function handle(msg) {
       if (params?.name !== TOOL.name) {
         return error(id, -32602, `Unknown tool: ${params?.name}`);
       }
-      const r = await runClaude(params?.arguments || {});
+      // Heartbeat: a whole-task agent can run for minutes; without a sign of life
+      // the caller sees a black box (and may give up). Emit a periodic MCP
+      // progress notification (only if the client supplied a progressToken, per
+      // spec) plus a stderr tick that always shows up in the MCP server log.
+      const progressToken = params?._meta?.progressToken;
+      const started = Date.now();
+      let ticks = 0;
+      const heartbeat = setInterval(() => {
+        ticks++;
+        const secs = Math.round((Date.now() - started) / 1000);
+        process.stderr.write(`[claude_agent] still running… ${secs}s\n`);
+        if (progressToken !== undefined && progressToken !== null) {
+          send({
+            jsonrpc: "2.0",
+            method: "notifications/progress",
+            params: { progressToken, progress: ticks, message: `claude agent running… ${secs}s elapsed` },
+          });
+        }
+      }, HEARTBEAT_MS);
+
+      let r;
+      try {
+        r = await runClaude(params?.arguments || {});
+      } finally {
+        clearInterval(heartbeat);
+      }
       return result(id, { content: [{ type: "text", text: r.text }], isError: !!r.isError });
     }
     default:
