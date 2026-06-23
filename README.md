@@ -1,5 +1,10 @@
 # cc-codex-mutual-mcp
 
+[![Release](https://img.shields.io/github/v/release/superchaospc/cc-codex-mutual-mcp?sort=semver)](https://github.com/superchaospc/cc-codex-mutual-mcp/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](#requirements)
+[![Claude Code skill](https://img.shields.io/badge/Claude%20Code-skill-d97757.svg)](https://docs.anthropic.com/en/docs/claude-code/skills)
+
 Wire **Claude Code** and the desktop **Codex.app** (OpenAI Codex) as each other's MCP server, so a
 session in either coding agent can hand real work to the other. This is a [Claude Code
 skill](https://docs.anthropic.com/en/docs/claude-code/skills) — it also auto-discovers in Codex,
