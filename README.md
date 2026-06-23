@@ -72,6 +72,17 @@ detection with env vars if needed: `CODEX_BIN=… CLAUDE_BIN=… bash install.sh
 
 ### Verify
 
+The fastest path is the bundled self-test — it proves the pieces actually *execute*, not just that
+they're registered, and the default checks spend **no API tokens** (the wrapper is driven against a
+stub claude; `claude mcp serve` runs tools without model inference):
+
+```bash
+bash scripts/selftest.sh          # free checks (protocol, leaf tool, registrations)
+bash scripts/selftest.sh --live   # also run a real headless claude agent (uses tokens)
+```
+
+Or check by hand:
+
 ```bash
 claude mcp list   # codex … ✔ Connected
 /Applications/Codex.app/Contents/Resources/codex mcp list   # claude_code AND claude_agent
@@ -161,6 +172,15 @@ bash install.sh
 安装脚本会自动探测 Codex / `claude` / `node` 三个二进制,幂等地注册全部三个 server,并**保留** Codex 已有的 MCP server(如 `node_repl`)。需要时可用环境变量覆盖探测:`CODEX_BIN=… CLAUDE_BIN=… bash install.sh`。
 
 ### 验证
+
+最快的方式是自带的自检脚本——它证明各部件「能跑」而不只是「已注册」,默认检查**不花任何 API token**(wrapper 用桩 claude 驱动;`claude mcp serve` 执行工具不走模型推理):
+
+```bash
+bash scripts/selftest.sh          # 免费检查(协议层、叶子工具、注册状态)
+bash scripts/selftest.sh --live   # 额外跑一个真实的 headless claude agent(会花 token)
+```
+
+或手动检查:
 
 ```bash
 claude mcp list   # codex … ✔ Connected
