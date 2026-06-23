@@ -13,6 +13,31 @@ skill](https://docs.anthropic.com/en/docs/claude-code/skills) — it also auto-d
 which uses the same `SKILL.md` format. Drop it in `~/.claude/skills/` (and/or symlink into
 `~/.codex/skills/`) and it triggers when you ask either agent to "let codex/claude do X".
 
+## Why wire them together
+
+Two coding agents from different vendors, with different strengths — calling each other inside one
+task instead of you copy-pasting between two windows.
+
+- **Complementary models, cross-vendor review.** Claude (Opus) and GPT/Codex have different blind
+  spots. Have one write and the other review (e.g. Claude implements, then `mcp__codex__codex` gets a
+  genuine second pair of eyes) — something single-model self-review can't give you, since a model
+  rarely catches its own blind spots.
+- **No context switching.** Without the bridge you'd finish in CC → copy → open Codex → paste →
+  re-explain the background → carry results back. With it, one "let codex do X" lands the files
+  directly, **context intact, nothing re-explained**.
+- **Two delegation granularities.** `claude_agent` / `mcp__codex__codex` hand off a *whole subtask*
+  (the other agent plans + executes autonomously, returns the result); `claude_code`'s leaf tools let
+  the caller borrow *one concrete action* (Bash/Edit/…). So the agents can both "outsource a package"
+  and "borrow a tool".
+- **Route around each other's limits/quota.** When one side is rate-limited (or the task suits the
+  other's tooling — Codex's computer-use, a particular Claude skill), finish the work on whichever
+  side still has capacity.
+
+**When it's *not* worth it:** trivial tasks one agent can finish alone (the extra hop just adds
+latency), flaky moments where the [four gotchas](#the-four-gotchas) cost more to debug than they
+save, and cross-model delegation stacking token cost on both sides. Use it for cross-vendor review
+and for offloading a subtask to the better-suited agent — not for the sake of using it.
+
 ## What it sets up
 
 Three MCP server registrations across two directions:
@@ -97,6 +122,17 @@ MIT
 ## 中文说明
 
 把 **Claude Code** 和桌面版 **Codex.app**(OpenAI Codex)互相注册成对方的 MCP server,这样在任一编码助手里的会话都能把真实任务交给另一个去做。这是一个 [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) —— 它用同样的 `SKILL.md` 格式,在 Codex 里也能被自动发现。把它放进 `~/.claude/skills/`(并/或软链到 `~/.codex/skills/`),当你让任一助手「让 codex/claude 去做某事」时就会触发。
+
+### 为什么要这样互通
+
+本质是让**两个不同厂商、各有强项的编码 agent 在一次任务里互相调用**,而不是你在两个窗口之间人肉复制粘贴。
+
+- **模型互补、跨厂商交叉审查。** Claude(Opus)和 GPT/Codex 的盲区不一样。让一个写、另一个审(比如 Claude 实现完,直接 `mcp__codex__codex` 拿到真正的「第二双眼睛」)—— 这是单模型自审给不了的,因为模型很难发现自己的盲区。
+- **不切上下文、省掉人肉搬运。** 没有这套桥,你得:CC 里干完 → 复制 → 打开 Codex → 粘贴 → 重新解释背景 → 再把结果搬回来。有了桥,一句「让 codex 做 X」文件直接落地,**上下文不丢、不用重讲背景**。
+- **两种委派粒度。** `claude_agent` / `mcp__codex__codex` 是把**整个子任务**甩出去(对方自主规划+执行,只收最终结果);`claude_code` 的叶子工具则让调用方只借**一个具体动作**(Bash/Edit…)。等于既能「整包外包」也能「借个工具用」。
+- **绕开各自的限制 / 配额。** 当一边被限流(或任务更适合对方的工具——Codex 的 computer-use、某个 Claude skill),就在还有额度的那边把活干完。
+
+**什么时候不值得:** 一个 agent 就能干完的简单任务(互调只是徒增延迟);桥不稳时[四个坑](#四个坑)的排查成本可能高过收益;跨模型委派会**叠加两边的 token 成本**。它的价值在跨厂商交叉审查、把子任务外包给更合适的那个 agent —— 别为了用而用。
 
 ### 它配置了什么
 
